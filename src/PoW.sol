@@ -27,7 +27,7 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
     {
         lastMintedAt = uint64(block.timestamp) - 2; // -2 so ln(delta_t) is always > 0
         startDate = lastMintedAt;
-        prevBlockHash = blockhash(block.number);
+        prevBlockHash = blockhash(block.number - 1);
     }
 
     /**
@@ -81,7 +81,7 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
 
         uint256 currentTotalSupply = totalSupply();
         _mint(to, newTotalSupply - currentTotalSupply);
-        prevBlockHash = blockhash(block.number);
+        prevBlockHash = blockhash(block.number - 1);
         round++;
         lastMintedAt = uint64(block.timestamp);
     }
