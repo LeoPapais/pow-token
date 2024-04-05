@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.21;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {console2} from "forge-std/Test.sol";
 
 import { UD60x18, convert } from "@prb/math/src/UD60x18.sol";
 
@@ -17,8 +18,7 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
 
 
     uint256 public constant TARGET_INTERVAL = 60;
-    uint256 public constant Kp = 10;
-    uint256 public currentDifficulty = type(uint256).max >> 10;
+    uint256 public currentThreshold = type(uint256).max >> 10;
 
     // logarithmic issuance policy, so we'll be always minting new tokens
     // but the rate will decrease over time, but it's not asymptotic to a ceiling
@@ -26,8 +26,9 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
         ERC20("ProofOfWork", "PoW")
         ERC20Permit("ProofOfWork")
     {
-        lastMintedAt = uint64(block.timestamp) - 1; // -1 so ln(delta_t) is 0 at t0
+        lastMintedAt = uint64(block.timestamp) - 2; // -2 so ln(delta_t) is always > 0
         startDate = lastMintedAt;
+        prevBlockHash = blockhash(block.number);
     }
 
     /**
@@ -40,6 +41,7 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
     function getResult(uint256 secret) public view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(
             msg.sender,
+            round,
             prevBlockHash,
             secret
         )));
@@ -49,22 +51,22 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
      * @notice Updates the difficulty of the proof of work. If the proof is found before the target interval, the difficulty
      * increases, and if it's found after the target interval, the difficulty decreases. It works as a simple P controller.
      */
-    function updateDifficulty() public {
+    function updateDifficulty() internal {
         int256 actualInterval = int256(block.timestamp) - int256(int64(lastMintedAt));
-        currentDifficulty = Math.mulDiv(currentDifficulty, uint256(actualInterval), TARGET_INTERVAL);
+        currentThreshold = Math.mulDiv(currentThreshold, uint256(actualInterval), TARGET_INTERVAL);
     }
 
     /**
      * @notice Checks if the proof is valid. Basically, it hashes the secret with the previous block hash and the sender's address
      * so to make sure that the sender has done the work to find a suitable secret. Since "result" is a hash converted to uint256,
-     * it's a pseudo-random number, so we can check if it's less than a given difficulty. This difficulty is a number that decreases
-     * when users find a valid proof after the target interval, and increases if they find it before the target interval.
+     * it's a pseudo-random number, so we can check if it's less than a given treshold. This treshold is a gauge to how hard it is to
+     * find a secret, it's a number that decreases when users take too long to find a valid proof, and increases if they find it before the target interval.
      * 
      * @param secret proof that msg.sender has done the work to find a suitable secret
      */
     function checkResult(uint256 secret) public view returns (bool) {
         uint256 result = getResult(secret);
-        return result < currentDifficulty;
+        return result < currentThreshold;
     }
 
     /**
@@ -81,5 +83,11 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
         uint256 currentTotalSupply = totalSupply();
         _mint(to, newTotalSupply - currentTotalSupply);
         prevBlockHash = blockhash(block.number);
+        round++;
+        lastMintedAt = uint64(block.timestamp);
+        console2.log("startDate", startDate);
+        console2.log("block.timestamp", block.timestamp);
+        console2.log("newTotalSupply", newTotalSupply);
+        console2.log("currentTotalSupply", newTotalSupply);
     }
 }
