@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20FlashMint.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import {console2} from "forge-std/Test.sol";
 
 import { UD60x18, convert } from "@prb/math/src/UD60x18.sol";
 
@@ -85,9 +84,5 @@ contract ProofOfWork is ERC20, ERC20Permit, ERC20FlashMint {
         prevBlockHash = blockhash(block.number);
         round++;
         lastMintedAt = uint64(block.timestamp);
-        console2.log("startDate", startDate);
-        console2.log("block.timestamp", block.timestamp);
-        console2.log("newTotalSupply", newTotalSupply);
-        console2.log("currentTotalSupply", newTotalSupply);
     }
 }
